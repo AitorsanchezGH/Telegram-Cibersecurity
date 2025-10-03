@@ -1,9 +1,11 @@
 from telethon import TelegramClient, events
 from config import API_ID, API_HASH, SESSION_NAME
 
+# Creamos el cliente de Telegram con tus credenciales
 client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
 
-@client.on(events.NewMessage(incoming=True))
+# Definimos un handler (función) que se ejecuta cada vez que entra un mensaje nuevo
+@client.on(events.NewMessage)
 async def handler(event):
     print(f"[{event.chat_id}] {event.sender_id}: {event.raw_text}")
 

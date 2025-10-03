@@ -1,2 +1,16 @@
-.env
+# Entorno virtual
+venv/
+
+# Sesiones de Telegram
 *.session
+
+# Variables de entorno
+.env
+
+# Archivos temporales
+__pycache__/
+*.pyc
+*.log
+
+# Salidas
+reports/*.pdf
