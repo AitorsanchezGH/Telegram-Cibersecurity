@@ -1,7 +1,8 @@
 from telethon import TelegramClient, events
-from config import API_ID, API_HASH, SESSION_NAME, MONGO_URI, MONGO_DB
-from db import MongoDBManager
-from message_utils import format_message_for_db, is_suspicious_message
+from src.listener.config import API_ID, API_HASH, SESSION_NAME, MONGO_URI, MONGO_DB
+from src.listener.db import MongoDBManager
+from src.core.message_utils import format_message_for_db
+from src.analysis.rule_based import analyze_message  
 import logging
 
 # Configuración de logging
@@ -24,17 +25,17 @@ async def handler(event):
         # Mostrar mensaje en consola (como antes)
         print(f"[{event.chat_id}] {event.sender_id}: {event.raw_text}")
         
-        # Formatear mensaje para la base de datos
+        # 1) Formatear mensaje para la base de datos
         message_data = format_message_for_db(event)
         
-        # Realizar análisis básico
-        analysis = is_suspicious_message(message_data)
-        message_data["analysis"].update(analysis)
+        # 2) Realizar análisis (baseline por reglas)
+        analysis = analyze_message(message_data)
+        message_data["analysis"] = analysis  # 👈 asignamos el dict entero
         
-        # Guardar en MongoDB
+        # 3) Guardar en MongoDB
         message_id = db_manager.insert_message(message_data)
         
-        # Log adicional para mensajes sospechosos
+        # 4) Log adicional para mensajes sospechosos
         if analysis.get("is_suspicious"):
             logger.warning(f"⚠️  MENSAJE SOSPECHOSO detectado - ID: {message_id}")
             logger.warning(f"    Razones: {', '.join(analysis['reasons'])}")

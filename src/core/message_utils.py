@@ -29,6 +29,8 @@ def format_message_for_db(event) -> Dict:
     Returns:
         Dict: Datos formateados para insertar en MongoDB
     """
+    raw_text = event.raw_text or ""
+    urls = extract_urls_from_text(raw_text)
     # Información básica del mensaje
     message_data = {
         # IDs únicos
@@ -42,8 +44,8 @@ def format_message_for_db(event) -> Dict:
         "timestamp": datetime.utcnow(),  # Timestamp de cuando lo procesamos
         
         # Metadatos para análisis de ciberseguridad
-        "urls": extract_urls_from_text(event.raw_text or ""),
-        "has_urls": bool(extract_urls_from_text(event.raw_text or "")),
+        "has_urls": bool(urls),
+        "message_length": len(raw_text),
         "message_length": len(event.raw_text or ""),
         
         # Información del chat
@@ -58,14 +60,8 @@ def format_message_for_db(event) -> Dict:
         "sender_phone": None,
         
         # Análisis futuro (inicialmente vacío)
-        "analysis": {
-            "is_spam": None,
-            "is_phishing": None,
-            "risk_score": None,
-            "keywords_detected": [],
-            "analysis_timestamp": None
-        },
-        
+        "analysis": None,
+
         # Metadatos adicionales
         "has_media": bool(event.message.media),
         "media_type": None, 
@@ -109,56 +105,3 @@ def format_message_for_db(event) -> Dict:
     
     return message_data
 
-def is_suspicious_message(message_data: Dict) -> Dict:
-    """
-    Análisis básico para detectar mensajes sospechosos
-    
-    Args:
-        message_data: Datos del mensaje formateados
-        
-    Returns:
-        Dict: Resultados del análisis
-    """
-    analysis = {
-        "is_suspicious": False,
-        "reasons": [],
-        "risk_score": 0
-    }
-    
-    text = message_data.get("text", "").lower()
-    urls = message_data.get("urls", [])
-    
-    # Palabras clave sospechosas (básico)
-    suspicious_keywords = [
-        "premio", "ganador", "felicidades", "click aqui", "urgente",
-        "bitcoin", "crypto", "inversion", "dinero facil", "descarga",
-        "verificar cuenta", "suspendido", "bloquear", "confirmar"
-    ]
-    
-    found_keywords = [kw for kw in suspicious_keywords if kw in text]
-    
-    if found_keywords:
-        analysis["is_suspicious"] = True
-        analysis["reasons"].append(f"Palabras sospechosas: {', '.join(found_keywords)}")
-        analysis["risk_score"] += len(found_keywords) * 10
-    
-    # URLs sospechosas
-    if urls:
-        analysis["reasons"].append(f"Contiene {len(urls)} URL(s)")
-        analysis["risk_score"] += len(urls) * 5
-        
-        # URLs con acortadores comunes
-        suspicious_domains = ["bit.ly", "tinyurl.com", "t.co", "goo.gl"]
-        for url in urls:
-            if any(domain in url for domain in suspicious_domains):
-                analysis["is_suspicious"] = True
-                analysis["reasons"].append("URL acortada detectada")
-                analysis["risk_score"] += 15
-    
-    # Mensajes muy largos o muy cortos con URLs
-    if urls and (len(text) < 50 or len(text) > 1000):
-        analysis["is_suspicious"] = True
-        analysis["reasons"].append("Longitud sospechosa con URLs")
-        analysis["risk_score"] += 10
-    
-    return analysis
